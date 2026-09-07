@@ -116,7 +116,14 @@ ones here instead of letting them live only in a chat transcript.
       tests pass.
 - [ ] Visual check of the launcher icon and the full-height lamp watermark
       on a real device/emulator and in a real browser (PR #34) -- written
-      and compiled correctly by inspection, never rendered.
+      and compiled correctly by inspection, never rendered. Now also covers
+      the colored glow behind the lantern housing (2026-09-07,
+      `ui/LampGlow.kt`): `LampHousingFraction = 0.14f` (where the lantern
+      sits, as a fraction of the watermark's height) is a reasoned estimate
+      against the source art, not a measurement -- confirm it actually lines
+      up, and that the glow's color genuinely reads as distinct per state
+      (Featured/Saved/Been/Seen/idle-amber on Home and Place Detail,
+      Discover's fixed teal) rather than as noise.
 - [ ] On-device Android check: release signing, versioning, and the
       sideload update-check/download/install/cleanup flow, after the whole
       Kotlin Multiplatform migration. Build-level checks (assemble,

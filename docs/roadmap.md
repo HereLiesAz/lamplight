@@ -342,6 +342,27 @@ PR history each session. Update this file in the same PR that moves an item's st
   That's flagged as its own open item in `TODO.md` rather than folded in here, since it's a
   real product tradeoff (a heavier page-load path for the fallback case), not a mechanical
   follow-on to the target existing.
+- **Lamp watermark glow, signaling area/state** -- decided 2026-09-07, at the user's explicit
+  request. The lamp watermark (previously a plain static image, Home-only) now carries a soft
+  colored glow behind its lantern housing (`ui/LampGlow.kt`'s `LampWatermark`), and appears on
+  Discover and Place Detail too, not just Home. Color comes from `lampGlowColorFor(featured,
+  saved, visited, seen)`: Featured > Saved > Visited ("Been"/Next Trip) > Seen > the plain
+  brand amber when none apply -- the same priority Explore's own sort already gives Featured.
+  Explore/Home's glow reflects whichever filter chip is active (the four filter booleans were
+  hoisted from `ExploreScreen` up to `LamplightHome`, which needs to read them); Place Detail's
+  glow reflects the one viewed place's own flags instead, animating into "seen" the moment a
+  never-opened place's `markSeen` effect fires; Discover gets a fixed teal "area" color, since
+  it has no single place's state to reflect. **A deliberate exception to `Theme.kt`'s own
+  documented rule** ("amber is the only bright accent... never a second hue") -- that rule is
+  explicitly about interactive chrome (buttons/chips/icons), which stays amber-only exactly as
+  before; this ambient, non-interactive signal is the one place multiple hues were a considered
+  choice, not an oversight, per direct instruction to use "distinct hues per state" over
+  staying within the amber family. Verified: all three targets compile, `testAndroidHostTest`
+  (including 5 new `LampGlowTest` cases covering the priority order) and both APK variants all
+  pass. **Not verified**: the glow's actual on-screen position and sizing against the real
+  artwork -- `LampHousingFraction` (where the lantern sits, as a fraction of the watermark's
+  height) is a reasoned estimate, not a measurement, since this sandbox can't render Compose UI
+  visually. Worth a real look on-device/in-browser before considering this done.
 
 ## Explicitly out of scope for now
 
