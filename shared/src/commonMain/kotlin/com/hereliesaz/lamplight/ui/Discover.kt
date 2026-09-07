@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -85,20 +86,27 @@ fun DiscoverScreen(
         }
     }
 
-    if (selectedCategory == null) {
-        DiscoverCategoryList(
-            representativePhotoByCategory = representativePhotoByCategory,
-            onBack = onBack,
-            onSelectCategory = { onSelectCategory(it) }
-        )
-    } else {
-        DiscoverCategoryResults(
-            category = selectedCategory,
-            places = placesByCategory[selectedCategory].orEmpty(),
-            vm = vm,
-            onBack = { onSelectCategory(null) },
-            open = open
-        )
+    Box(Modifier.fillMaxSize().background(Ink)) {
+        // A fixed "area" glow, not a per-place one like Explore/Place Detail -- Discover is a
+        // category browser, with no single place's state to reflect. See lampGlowColorFor's
+        // doc for how the other two screens pick their glow color.
+        LampWatermark(glowColor = GlowDiscover, modifier = Modifier.align(Alignment.TopStart).fillMaxHeight())
+
+        if (selectedCategory == null) {
+            DiscoverCategoryList(
+                representativePhotoByCategory = representativePhotoByCategory,
+                onBack = onBack,
+                onSelectCategory = { onSelectCategory(it) }
+            )
+        } else {
+            DiscoverCategoryResults(
+                category = selectedCategory,
+                places = placesByCategory[selectedCategory].orEmpty(),
+                vm = vm,
+                onBack = { onSelectCategory(null) },
+                open = open
+            )
+        }
     }
 }
 
@@ -108,7 +116,7 @@ private fun DiscoverCategoryList(
     onBack: () -> Unit,
     onSelectCategory: (DiscoverCategory) -> Unit
 ) {
-    Column(Modifier.fillMaxSize().background(Ink).statusBarsPadding()) {
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Cream) }
             Text("DISCOVER", color = Fog, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = LocalMartianMonoFontFamily.current)
@@ -162,7 +170,7 @@ private fun DiscoverCategoryResults(
     onBack: () -> Unit,
     open: (Place) -> Unit
 ) {
-    Column(Modifier.fillMaxSize().background(Ink).statusBarsPadding()) {
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Cream) }
             Column {

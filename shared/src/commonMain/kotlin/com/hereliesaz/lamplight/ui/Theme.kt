@@ -21,13 +21,26 @@ import lamplight.shared.generated.resources.archivo_regular
 import lamplight.shared.generated.resources.martian_mono_bold
 import lamplight.shared.generated.resources.martian_mono_regular
 
-// Near-black, never pure black; amber is the only bright accent in the whole app.
+// Near-black, never pure black; amber is the only bright accent in every piece of interactive
+// chrome -- buttons, chips, icons all stay Amber-only, exactly as before.
 // See docs/design-system.md for the source design direction these tokens implement.
 val Ink = Color(0xFF080A09)
 val Panel = Color(0xFF111512)
 val Amber = Color(0xFFFFC24B)
 val Cream = Color(0xFFF2EFEA)
 val Fog = Color(0xFFAFAFAA)
+
+// The lamp watermark's glow (see ui/LampGlow.kt) is a deliberate, singular exception to the
+// single-accent rule above: it's an ambient, ever-present signal for which area/state of the
+// app is showing, not interactive chrome, so distinct hues per state make it legible at a
+// glance the way a single accent color couldn't. Decided 2026-09-07. Chosen to read as warm
+// or cool by feeling (kept/personal, ahead of you, a passing impression) rather than an
+// arbitrary rainbow -- see lampGlowColorFor's own doc for the priority order between them.
+val GlowFeatured = Color(0xFFE85A4F) // warm coral-red -- spotlighted, matches Featured's priority everywhere else
+val GlowSaved = Color(0xFFE85A9E) // rose -- kept, personal
+val GlowNextTrip = Color(0xFF5A9EE8) // cool blue -- ahead of you, not yet visited
+val GlowSeen = Color(0xFF9E5AE8) // soft violet -- noticed, a passing impression
+val GlowDiscover = Color(0xFF4FC9A8) // teal -- browsing, not yet tied to one place
 
 /** Martian Mono (Evil Martians, SIL OFL), for functional/utility text -- provided by [LamplightTheme]. */
 val LocalMartianMonoFontFamily = compositionLocalOf<FontFamily> {

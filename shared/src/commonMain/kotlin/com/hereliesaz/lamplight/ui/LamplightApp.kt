@@ -14,7 +14,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -104,17 +103,8 @@ import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.toLocalDateTime
-import lamplight.shared.generated.resources.Res
-import lamplight.shared.generated.resources.lamplight_mark
-import org.jetbrains.compose.resources.painterResource
-
 // Cycled by grid position so the staggered grid reads as a mosaic instead of a uniform checkerboard.
 private val MosaicAspectRatios = listOf(0.78f, 1.15f, 1.4f, 0.95f)
-
-// docs/lamplight_transparent.png is a tall, narrow ink-wash lamppost illustration
-// (885x3104 source) that hangs as a full-height watermark down the left edge. Height drives
-// the layout; width follows from the source's own aspect ratio so the art is never stretched.
-private const val LamplightMarkAspectRatio = 885f / 3104f
 
 @Composable
 fun LamplightApp(vm: LamplightViewModel, platformBanner: @Composable () -> Unit = {}) {
@@ -190,23 +180,40 @@ private fun LamplightHome(
     onOpenDiscover: () -> Unit
 ) {
     var showMoodPrompt by remember { mutableStateOf(false) }
+    // Hoisted above ExploreScreen (which would otherwise own these itself) so the lamp
+    // watermark's glow below can read whichever filter is active -- see lampGlowColorFor.
+    var filterSaved by rememberSaveable { mutableStateOf(false) }
+    var filterVisited by rememberSaveable { mutableStateOf(false) }
+    var filterSeen by rememberSaveable { mutableStateOf(false) }
+    var filterFeatured by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(containerColor = Ink) { padding ->
         Box(Modifier.fillMaxSize()) {
             // Full-height watermark, behind literally everything else on this screen -- it only
             // shows through the gaps the content above leaves for it (header padding, the grid's
-            // own gutters), never underneath an opaque card or field.
-            Image(
-                painter = painterResource(Res.drawable.lamplight_mark),
-                contentDescription = null,
-                modifier = Modifier.align(Alignment.TopStart).fillMaxHeight().aspectRatio(LamplightMarkAspectRatio)
+            // own gutters), never underneath an opaque card or field. Glow color follows
+            // whichever filter is active; see lampGlowColorFor for the priority between them.
+            LampWatermark(
+                glowColor = lampGlowColorFor(
+                    featured = filterFeatured,
+                    saved = filterSaved,
+                    visited = filterVisited,
+                    seen = filterSeen
+                ),
+                modifier = Modifier.align(Alignment.TopStart).fillMaxHeight()
             )
 
             Box(Modifier.padding(padding).fillMaxSize()) {
                 Column(Modifier.fillMaxSize()) {
                     platformBanner()
                     Box(Modifier.weight(1f)) {
-                        ExploreScreen(vm, sharedTransitionScope, animatedVisibilityScope, open)
+                        ExploreScreen(
+                            vm, sharedTransitionScope, animatedVisibilityScope, open,
+                            filterSaved = filterSaved, onFilterSavedChange = { filterSaved = it },
+                            filterVisited = filterVisited, onFilterVisitedChange = { filterVisited = it },
+                            filterSeen = filterSeen, onFilterSeenChange = { filterSeen = it },
+                            filterFeatured = filterFeatured, onFilterFeaturedChange = { filterFeatured = it }
+                        )
                     }
                 }
                 Row(
@@ -247,13 +254,19 @@ private fun ExploreScreen(
     vm: LamplightViewModel,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedContentScope,
-    open: (Place) -> Unit
+    open: (Place) -> Unit,
+    // Hoisted to LamplightHome, which needs to read the active filter to color the lamp
+    // watermark's glow -- see lampGlowColorFor.
+    filterSaved: Boolean,
+    onFilterSavedChange: (Boolean) -> Unit,
+    filterVisited: Boolean,
+    onFilterVisitedChange: (Boolean) -> Unit,
+    filterSeen: Boolean,
+    onFilterSeenChange: (Boolean) -> Unit,
+    filterFeatured: Boolean,
+    onFilterFeaturedChange: (Boolean) -> Unit
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    var filterSaved by rememberSaveable { mutableStateOf(false) }
-    var filterVisited by rememberSaveable { mutableStateOf(false) }
-    var filterSeen by rememberSaveable { mutableStateOf(false) }
-    var filterFeatured by rememberSaveable { mutableStateOf(false) }
 
     val filtered = vm.places.filter { place ->
         (!filterSaved || vm.isSaved(place.id)) &&
@@ -313,28 +326,28 @@ private fun ExploreScreen(
             item {
                 FilterChip(
                     selected = filterSaved,
-                    onClick = { filterSaved = !filterSaved },
+                    onClick = { onFilterSavedChange(!filterSaved) },
                     label = { Text("Saved") }
                 )
             }
             item {
                 FilterChip(
                     selected = filterVisited,
-                    onClick = { filterVisited = !filterVisited },
+                    onClick = { onFilterVisitedChange(!filterVisited) },
                     label = { Text("Been") }
                 )
             }
             item {
                 FilterChip(
                     selected = filterSeen,
-                    onClick = { filterSeen = !filterSeen },
+                    onClick = { onFilterSeenChange(!filterSeen) },
                     label = { Text("Seen") }
                 )
             }
             item {
                 FilterChip(
                     selected = filterFeatured,
-                    onClick = { filterFeatured = !filterFeatured },
+                    onClick = { onFilterFeaturedChange(!filterFeatured) },
                     label = { Text("Featured") }
                 )
             }
@@ -497,104 +510,133 @@ private fun PlaceDetail(
 
     LaunchedEffect(place.id) { vm.markSeen(place.id) }
 
-    Column(Modifier.fillMaxSize().background(Ink).verticalScroll(rememberScrollState()).statusBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Cream) }
-            Text("LAMPLIGHT", color = Fog, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = LocalMartianMonoFontFamily.current)
-        }
-
-        // Hero focus: this frame shares bounds with the mosaic tile that was tapped.
-        PhotoFrame(
-            place = place,
-            photo = photos.firstOrNull(),
-            message = if (!vm.photosConfigured) "No photos bundled in this build" else "No photo for this venue",
-            sharedTransitionScope = sharedTransitionScope,
-            animatedVisibilityScope = animatedVisibilityScope,
-            sharedKey = "photo-${place.id}",
-            fullAttribution = true,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).height(280.dp)
+    Box(Modifier.fillMaxSize().background(Ink)) {
+        // Glow reflects this specific place's own state, not a filter -- the same priority
+        // rule as Explore's watermark (lampGlowColorFor), just fed this one place's flags.
+        // markSeen above means a never-before-seen place visibly shifts into the "seen" glow
+        // the moment it opens, unless something higher-priority (saved/visited/featured)
+        // already applies.
+        LampWatermark(
+            glowColor = lampGlowColorFor(
+                featured = place.featured,
+                saved = vm.isSaved(place.id),
+                visited = vm.isVisited(place.id),
+                seen = vm.isSeen(place.id)
+            ),
+            modifier = Modifier.align(Alignment.TopStart).fillMaxHeight()
         )
 
-        if (place.featured) {
-            Text(
-                "FEATURED",
-                color = Ink,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = LocalMartianMonoFontFamily.current,
-                letterSpacing = 0.5.sp,
-                modifier = Modifier
-                    .padding(start = 18.dp, top = 12.dp)
-                    .background(Amber)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            )
-        }
-        Text(
-            place.venue,
-            color = Cream,
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Black,
-            lineHeight = 38.sp,
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp)
-        )
-        val anchor = vm.hotelAnchor
-        val location = vm.currentLocation
-        when {
-            anchor != null -> Text(
-                "${walkMinutesFromAnchor(anchor, place)} min walk from your hotel",
-                color = Amber,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = LocalMartianMonoFontFamily.current,
-                modifier = Modifier.padding(horizontal = 18.dp)
-            )
-            location != null -> Text(
-                "${walkMinutesFrom(location.latitude, location.longitude, place)} min walk from here",
-                color = Amber,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = LocalMartianMonoFontFamily.current,
-                modifier = Modifier.padding(horizontal = 18.dp)
-            )
-            else -> Text(
-                "${place.latitude}, ${place.longitude}",
-                color = Fog,
-                fontSize = 12.sp,
-                fontFamily = LocalMartianMonoFontFamily.current,
-                modifier = Modifier.padding(horizontal = 18.dp)
-            )
-        }
-        openNow?.let { isOpen ->
-            Text(
-                if (isOpen) "Open now" else "Closed now",
-                color = if (isOpen) Amber else Fog,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = LocalMartianMonoFontFamily.current,
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp)
-            )
-        }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Cream) }
+                Text("LAMPLIGHT", color = Fog, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = LocalMartianMonoFontFamily.current)
+            }
 
-        // Full listing info below the hero: remaining photos, good-for highlights, tags, actions, map.
-        if (photos.size > 1) {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(photos.drop(1), key = { it.uri }) { photo ->
-                    PhotoFrame(
-                        place = place,
-                        photo = photo,
-                        message = null,
-                        modifier = Modifier.width(220.dp).height(160.dp)
-                    )
+            // Hero focus: this frame shares bounds with the mosaic tile that was tapped.
+            PhotoFrame(
+                place = place,
+                photo = photos.firstOrNull(),
+                message = if (!vm.photosConfigured) "No photos bundled in this build" else "No photo for this venue",
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                sharedKey = "photo-${place.id}",
+                fullAttribution = true,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).height(280.dp)
+            )
+
+            if (place.featured) {
+                Text(
+                    "FEATURED",
+                    color = Ink,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = LocalMartianMonoFontFamily.current,
+                    letterSpacing = 0.5.sp,
+                    modifier = Modifier
+                        .padding(start = 18.dp, top = 12.dp)
+                        .background(Amber)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+            Text(
+                place.venue,
+                color = Cream,
+                fontSize = 34.sp,
+                fontWeight = FontWeight.Black,
+                lineHeight = 38.sp,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp)
+            )
+            val anchor = vm.hotelAnchor
+            val location = vm.currentLocation
+            when {
+                anchor != null -> Text(
+                    "${walkMinutesFromAnchor(anchor, place)} min walk from your hotel",
+                    color = Amber,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = LocalMartianMonoFontFamily.current,
+                    modifier = Modifier.padding(horizontal = 18.dp)
+                )
+                location != null -> Text(
+                    "${walkMinutesFrom(location.latitude, location.longitude, place)} min walk from here",
+                    color = Amber,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = LocalMartianMonoFontFamily.current,
+                    modifier = Modifier.padding(horizontal = 18.dp)
+                )
+                else -> Text(
+                    "${place.latitude}, ${place.longitude}",
+                    color = Fog,
+                    fontSize = 12.sp,
+                    fontFamily = LocalMartianMonoFontFamily.current,
+                    modifier = Modifier.padding(horizontal = 18.dp)
+                )
+            }
+            openNow?.let { isOpen ->
+                Text(
+                    if (isOpen) "Open now" else "Closed now",
+                    color = if (isOpen) Amber else Fog,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = LocalMartianMonoFontFamily.current,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp)
+                )
+            }
+
+            // Full listing info below the hero: remaining photos, good-for highlights, tags, actions, map.
+            if (photos.size > 1) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(photos.drop(1), key = { it.uri }) { photo ->
+                        PhotoFrame(
+                            place = place,
+                            photo = photo,
+                            message = null,
+                            modifier = Modifier.width(220.dp).height(160.dp)
+                        )
+                    }
                 }
             }
-        }
 
-        if (goodFor.isNotEmpty()) {
+            if (goodFor.isNotEmpty()) {
+                Text(
+                    "GOOD FOR",
+                    color = Fog,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = LocalMartianMonoFontFamily.current,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
+                )
+                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(goodFor) { tag -> AssistChip(onClick = {}, label = { Text(tag) }) }
+                }
+            }
+
             Text(
-                "GOOD FOR",
+                "TAGS",
                 color = Fog,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -602,67 +644,55 @@ private fun PlaceDetail(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
             )
             LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(goodFor) { tag -> AssistChip(onClick = {}, label = { Text(tag) }) }
+                items(place.tags) { tag -> AssistChip(onClick = {}, label = { Text(tag) }) }
             }
-        }
 
-        Text(
-            "TAGS",
-            color = Fog,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = LocalMartianMonoFontFamily.current,
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
-        )
-        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(place.tags) { tag -> AssistChip(onClick = {}, label = { Text(tag) }) }
-        }
-
-        val todaysHoursLine = todaysHours(details.weekdayDescriptions)
-        if (details.phone != null || details.website != null || details.address != null || todaysHoursLine != null) {
-            Text(
-                "DETAILS",
-                color = Fog,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = LocalMartianMonoFontFamily.current,
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
-            )
-            Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                details.phone?.let { phone ->
-                    DetailRow(Icons.Default.Call, phone) { urlOpener("tel:$phone") }
+            val todaysHoursLine = todaysHours(details.weekdayDescriptions)
+            if (details.phone != null || details.website != null || details.address != null || todaysHoursLine != null) {
+                Text(
+                    "DETAILS",
+                    color = Fog,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = LocalMartianMonoFontFamily.current,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
+                )
+                Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    details.phone?.let { phone ->
+                        DetailRow(Icons.Default.Call, phone) { urlOpener("tel:$phone") }
+                    }
+                    details.website?.let { website ->
+                        DetailRow(Icons.Default.Language, website) { urlOpener(website) }
+                    }
+                    details.address?.let { address -> DetailRow(Icons.Default.Place, address, onClick = null) }
+                    todaysHoursLine?.let { hours -> DetailRow(Icons.Default.Schedule, hours, onClick = null) }
                 }
-                details.website?.let { website ->
-                    DetailRow(Icons.Default.Language, website) { urlOpener(website) }
+                Spacer(Modifier.height(8.dp))
+            }
+
+            Row(Modifier.fillMaxWidth().padding(18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FilledTonalButton(onClick = { vm.toggleSaved(place.id) }, modifier = Modifier.weight(1f)) {
+                    Icon(if (vm.isSaved(place.id)) Icons.Default.Bookmark else Icons.Default.BookmarkBorder, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (vm.isSaved(place.id)) "Saved" else "Save")
                 }
-                details.address?.let { address -> DetailRow(Icons.Default.Place, address, onClick = null) }
-                todaysHoursLine?.let { hours -> DetailRow(Icons.Default.Schedule, hours, onClick = null) }
+                FilledTonalButton(onClick = { vm.toggleVisited(place.id) }, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.CheckCircle, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (vm.isVisited(place.id)) "Been" else "Been there")
+                }
             }
-            Spacer(Modifier.height(8.dp))
-        }
 
-        Row(Modifier.fillMaxWidth().padding(18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            FilledTonalButton(onClick = { vm.toggleSaved(place.id) }, modifier = Modifier.weight(1f)) {
-                Icon(if (vm.isSaved(place.id)) Icons.Default.Bookmark else Icons.Default.BookmarkBorder, null)
-                Spacer(Modifier.width(6.dp))
-                Text(if (vm.isSaved(place.id)) "Saved" else "Save")
+            Button(
+                onClick = { urlOpener(mapsSearchUrl(place.latitude, place.longitude)) },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)
+            ) {
+                Icon(Icons.Default.Map, null)
+                Spacer(Modifier.width(8.dp))
+                Text("OPEN IN MAPS")
             }
-            FilledTonalButton(onClick = { vm.toggleVisited(place.id) }, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Default.CheckCircle, null)
-                Spacer(Modifier.width(6.dp))
-                Text(if (vm.isVisited(place.id)) "Been" else "Been there")
-            }
+            Spacer(Modifier.height(28.dp))
         }
-
-        Button(
-            onClick = { urlOpener(mapsSearchUrl(place.latitude, place.longitude)) },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)
-        ) {
-            Icon(Icons.Default.Map, null)
-            Spacer(Modifier.width(8.dp))
-            Text("OPEN IN MAPS")
-        }
-        Spacer(Modifier.height(28.dp))
     }
 }
 
