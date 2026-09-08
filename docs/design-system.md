@@ -2,22 +2,34 @@
 
 The implementation-facing half of [`product-direction.md`](product-direction.md)'s
 "Aesthetic Direction" section. This file should stay in sync with
-`shared/src/androidMain/kotlin/com/hereliesaz/lamplight/ui/Theme.kt` -- if you change a token there,
+`shared/src/commonMain/kotlin/com/hereliesaz/lamplight/ui/Theme.kt` -- if you change a token there,
 update the value here too, and vice versa.
 
 ## Color
 
-One accent, everywhere. There is no second brand hue -- states that used to be
-color-coded (e.g. a green "visited" checkmark) are differentiated by icon shape and
-placement instead, never by introducing another color.
+One accent for every piece of interactive chrome -- buttons, chips, icons, selected
+states -- there is no second brand hue there: differentiate by icon shape and placement
+instead, never by introducing another color.
+
+**One deliberate exception, decided 2026-09-07**: the lamp watermark's ambient glow
+(`ui/LampGlow.kt`) is not interactive chrome, and does use distinct hues to signal
+area/state at a glance (Featured/Saved/Been-"Next Trip"/Seen each get their own color;
+Discover gets a fixed one) -- see `GlowFeatured`/`GlowSaved`/`GlowNextTrip`/`GlowSeen`/
+`GlowDiscover` in `Theme.kt` and `lampGlowColorFor`'s own doc for the priority between
+them. This is the one place a second (third, fourth...) hue is intentional, not a lapse.
 
 | Token (`Theme.kt`) | Hex | Role |
 |---|---|---|
 | `Ink` | `#080A09` | App background. Near-black, not pure black. |
 | `Panel` | `#111512` | Raised surfaces: nav bar, sheets, cards, banners. |
-| `Amber` | `#FFC24B` | The only bright accent -- primary actions, selected states, active icons. |
+| `Amber` | `#FFC24B` | The only bright accent for interactive chrome -- primary actions, selected states, active icons. Also the lamp glow's idle/resting color. |
 | `Cream` | `#F2EFEA` | Primary text and icons (off-white, never pure white). |
 | `Fog` | `#AFAFAA` | Secondary text, metadata, inactive icons. Neutral gray, no green cast. |
+| `GlowFeatured` | `#E85A4F` | Lamp glow only -- Featured (Home/Place Detail). |
+| `GlowSaved` | `#E85A9E` | Lamp glow only -- Saved (Home/Place Detail). |
+| `GlowNextTrip` | `#5A9EE8` | Lamp glow only -- Been/"Next Trip" (Home/Place Detail). |
+| `GlowSeen` | `#9E5AE8` | Lamp glow only -- Seen (Home/Place Detail). |
+| `GlowDiscover` | `#4FC9A8` | Lamp glow only -- Discover's fixed "area" color. |
 
 Anything not listed above (error red, container tones) lives in `LamplightColors` in
 `Theme.kt` and is a supporting shade of one of the tokens above, not a new hue.
