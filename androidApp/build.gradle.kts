@@ -1,4 +1,5 @@
 import java.io.File
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -31,8 +32,18 @@ android {
         applicationId = "com.hereliesaz.lamplight"
         minSdk = 28
         targetSdk = 37
-        versionCode = (project.findProperty("versionBuild") as String?)?.toIntOrNull() ?: 1
-        versionName = (project.findProperty("versionName") as String?) ?: "1.0"
+        // -PversionCodeOverride (central Play release's Play-checked code), then -PversionBuild /
+        // -PversionName; otherwise version.properties, which the central GitHub release rewrites.
+        val versionProps = Properties().apply {
+            rootProject.file("version.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+        }
+        versionCode = (project.findProperty("versionCodeOverride") as String?)?.toIntOrNull()
+            ?: (project.findProperty("versionBuild") as String?)?.toIntOrNull()
+            ?: versionProps.getProperty("versionBuild")?.toIntOrNull() ?: 1
+        versionName = (project.findProperty("versionName") as String?)
+            ?: versionProps.getProperty("versionMajor")?.let { major ->
+                "$major.${versionProps.getProperty("versionMinor", "0")}.${versionProps.getProperty("versionPatch", "0")}"
+            } ?: "1.0"
     }
 
     signingConfigs {
@@ -54,7 +65,8 @@ android {
             isMinifyEnabled = false
         }
         release {
-            isMinifyEnabled = false
+            // R8 on so the central Play release has a mapping.txt to upload.
+            isMinifyEnabled = true
             if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
