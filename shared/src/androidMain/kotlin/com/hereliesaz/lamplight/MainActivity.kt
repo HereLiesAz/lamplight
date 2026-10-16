@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -24,6 +25,7 @@ class MainActivity : ComponentActivity() {
                 // the shared ViewModel.
                 val updateScope = rememberCoroutineScope()
                 val updateController = remember { GitHubUpdateController(application, updateScope) }
+                DisposableEffect(updateController) { onDispose { updateController.dispose() } }
                 LamplightApp(vm, platformBanner = { AndroidUpdateBanner(updateController) })
             }
         }

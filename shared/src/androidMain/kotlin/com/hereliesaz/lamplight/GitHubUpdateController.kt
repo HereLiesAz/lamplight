@@ -54,7 +54,13 @@ class GitHubUpdateController(private val application: Application, scope: Corout
                 pendingDownloadId = null
                 downloadCompleteReceiver?.let { runCatching { application.unregisterReceiver(it) } }
                 downloadCompleteReceiver = null
-                githubUpdateDownloadState.value = GitHubUpdateDownloadState.ReadyToInstall(apkDownloadFile(application))
+                // ACTION_DOWNLOAD_COMPLETE fires for failed downloads too (no network, 404, disk
+                // full), so confirm the download actually succeeded before offering "Install".
+                githubUpdateDownloadState.value = if (isDownloadSuccessful(application, completedId)) {
+                    GitHubUpdateDownloadState.ReadyToInstall(apkDownloadFile(application))
+                } else {
+                    GitHubUpdateDownloadState.NotStarted // lets the guest retry
+                }
             }
         }
         downloadCompleteReceiver = receiver
@@ -66,7 +72,18 @@ class GitHubUpdateController(private val application: Application, scope: Corout
         )
     }
 
-    /** Unregisters the download-complete receiver, if one is still registered. Call from the owning ViewModel's onCleared(). */
+    private fun isDownloadSuccessful(context: Context, downloadId: Long): Boolean {
+        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager ?: return false
+        return runCatching {
+            manager.query(DownloadManager.Query().setFilterById(downloadId)).use { cursor ->
+                cursor.moveToFirst() &&
+                    cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)) ==
+                    DownloadManager.STATUS_SUCCESSFUL
+            }
+        }.getOrDefault(false)
+    }
+
+    /** Unregisters the download-complete receiver, if one is still registered. Call when the owning composition/activity is disposed. */
     fun dispose() {
         downloadCompleteReceiver?.let { runCatching { application.unregisterReceiver(it) } }
         downloadCompleteReceiver = null
