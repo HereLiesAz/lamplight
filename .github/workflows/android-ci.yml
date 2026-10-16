@@ -21,7 +21,7 @@ name: Android CI
 
 on:
   push:
-    branches: [ "**" ]
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -48,8 +48,8 @@ jobs:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CUSTOM_API_KEY: ${{ secrets.CUSTOM_API_KEY }}
         run: |
-          if [ -f "app/google-services.json.template" ]; then
-            sed -e 's/{{\([^}]*\)}}/${\1}/g' app/google-services.json.template | envsubst > app/google-services.json
+          if [ -f "androidApp/google-services.json.template" ]; then
+            sed -e 's/{{\([^}]*\)}}/${\1}/g' androidApp/google-services.json.template | envsubst > androidApp/google-services.json
           fi
           # Add any extra local.properties keys below:
           # echo "CUSTOM_API_KEY=$CUSTOM_API_KEY" >> local.properties
@@ -69,7 +69,7 @@ jobs:
       - name: Run unit tests
         run: |
           chmod +x gradlew
-          ./gradlew test --continue --build-cache --no-daemon --stacktrace
+          ./gradlew allTests --continue --build-cache --no-daemon --stacktrace
 
       - name: Upload test reports
         if: always()
@@ -101,9 +101,9 @@ jobs:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CUSTOM_API_KEY: ${{ secrets.CUSTOM_API_KEY }}
         run: |
-          if [ -f "app/google-services.json.template" ]; then
+          if [ -f "androidApp/google-services.json.template" ]; then
             echo "Template found. Injecting secrets..."
-            sed -e 's/{{\([^}]*\)}}/${\1}/g' app/google-services.json.template | envsubst > app/google-services.json
+            sed -e 's/{{\([^}]*\)}}/${\1}/g' androidApp/google-services.json.template | envsubst > androidApp/google-services.json
           else
             echo "Warning: google-services.json.template not found. Skipping injection."
           fi
@@ -117,12 +117,12 @@ jobs:
             echo "::warning::KEYSTORE_RAW secret is empty — building with the default debug key."
             exit 0
           fi
-          echo "$KEYSTORE_RAW" | base64 -d > app/keystore.jks
-          if [ ! -s app/keystore.jks ]; then
+          echo "$KEYSTORE_RAW" | base64 -d > androidApp/keystore.jks
+          if [ ! -s androidApp/keystore.jks ]; then
             echo "::error::Decoded keystore is empty — KEYSTORE_RAW is not valid base64."
             exit 1
           fi
-          echo "Keystore decoded to app/keystore.jks ($(stat -c%s app/keystore.jks) bytes)"
+          echo "Keystore decoded to androidApp/keystore.jks ($(stat -c%s androidApp/keystore.jks) bytes)"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -146,7 +146,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          KEYSTORE_FILE: ${{ github.workspace }}/app/keystore.jks
+          KEYSTORE_FILE: ${{ github.workspace }}/androidApp/keystore.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -192,7 +192,7 @@ jobs:
           else
             APP_NAME="App"
           fi
-          APK_ORIGINAL=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          APK_ORIGINAL=$(find androidApp/build/outputs/apk/debug -name "*.apk" | head -n 1)
           if [ -z "$APK_ORIGINAL" ]; then
             echo "Error: No APK found to release!"
             exit 1
@@ -202,8 +202,8 @@ jobs:
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "APK_FILE=$TARGET_NAME" >> $GITHUB_ENV
           mkdir -p build_tools_package/tools build_tools_package/native
-          [ -d "app/src/main/assets/tools" ] && cp -r app/src/main/assets/tools/* build_tools_package/tools/ || true
-          [ -d "app/src/main/jniLibs/arm64-v8a" ] && cp -r app/src/main/jniLibs/arm64-v8a/* build_tools_package/native/ || true
+          [ -d "androidApp/src/main/assets/tools" ] && cp -r androidApp/src/main/assets/tools/* build_tools_package/tools/ || true
+          [ -d "androidApp/src/main/jniLibs/arm64-v8a" ] && cp -r androidApp/src/main/jniLibs/arm64-v8a/* build_tools_package/native/ || true
           cd build_tools_package && zip -r ../build-tools.zip . && cd ..
 
       - name: Publish Release

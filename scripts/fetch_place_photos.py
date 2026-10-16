@@ -135,7 +135,7 @@ def resolve_place_id(venue: dict, api_key: str, cache: dict) -> str | None:
     }
     try:
         result = api_request("POST", f"{PLACES_API_BASE}/places:searchText", api_key, body, field_mask="places.id")
-    except urllib.error.HTTPError as error:
+    except (urllib.error.URLError, TimeoutError, OSError) as error:
         print(f"  Text Search failed for {venue['venue']!r}: {error}", file=sys.stderr)
         return None
 
@@ -153,7 +153,7 @@ def fetch_place_details(place_id: str, api_key: str) -> dict:
             "GET", f"{PLACES_API_BASE}/places/{place_id}", api_key,
             field_mask=PLACE_DETAILS_FIELD_MASK,
         )
-    except urllib.error.HTTPError as error:
+    except (urllib.error.URLError, TimeoutError, OSError) as error:
         print(f"  Place Details failed for {place_id}: {error}", file=sys.stderr)
         return {}
 
@@ -221,7 +221,7 @@ def download_photo(photo_name: str, api_key: str) -> bytes | None:
     try:
         with urllib.request.urlopen(url, timeout=30) as response:
             return response.read()
-    except urllib.error.HTTPError as error:
+    except (urllib.error.URLError, TimeoutError, OSError) as error:
         print(f"  Photo download failed for {photo_name}: {error}", file=sys.stderr)
         return None
 
