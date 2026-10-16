@@ -95,14 +95,13 @@ import com.hereliesaz.lamplight.goodForTagsIn
 import com.hereliesaz.lamplight.haversineMeters
 import com.hereliesaz.lamplight.moodRelevanceScore
 import com.hereliesaz.lamplight.isOpenNow
+import com.hereliesaz.lamplight.newOrleansLocalDateTime
 import com.hereliesaz.lamplight.mapsSearchUrl
 import com.hereliesaz.lamplight.rememberUrlOpener
 import com.hereliesaz.lamplight.walkMinutesFrom
 import com.hereliesaz.lamplight.walkMinutesFromAnchor
 import kotlin.time.Clock
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.isoDayNumber
-import kotlinx.datetime.toLocalDateTime
 // Cycled by grid position so the staggered grid reads as a mosaic instead of a uniform checkerboard.
 private val MosaicAspectRatios = listOf(0.78f, 1.15f, 1.4f, 0.95f)
 
@@ -498,7 +497,7 @@ private fun PlaceDetail(
     val urlOpener = rememberUrlOpener()
     val photos = vm.photos(place.id)
     val details = vm.placeDetails(place.id)
-    val nowLocal = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+    val nowLocal = newOrleansLocalDateTime(Clock.System.now())
     val openNow = isOpenNow(details.periods, nowLocal.dayOfWeek, nowLocal.time)
     // place.tags only, matching the TAGS section below -- not + details.tags, unlike
     // Discover's own category matching. details.tags (Google place-types, review-mined
@@ -712,7 +711,7 @@ private fun DetailRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tex
 // unrelated to (and not to be confused with) the Sunday-first day numbering periods use.
 private fun todaysHours(weekdayDescriptions: List<String>): String? {
     if (weekdayDescriptions.size != 7) return null
-    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).dayOfWeek
+    val today = newOrleansLocalDateTime(Clock.System.now()).dayOfWeek
     return weekdayDescriptions.getOrNull(today.isoDayNumber - 1)
 }
 
