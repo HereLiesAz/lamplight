@@ -2,6 +2,7 @@ package com.hereliesaz.lamplight
 
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -53,5 +54,34 @@ class OpeningHoursTest {
         DayOfWeek.entries.forEach { day ->
             assertEquals(true, isOpenNow(periods, day, LocalTime(3, 30)))
         }
+    }
+}
+
+class NewOrleansTimeTest {
+
+    @Test
+    fun `reads venue-local time regardless of device zone`() {
+        // 2026-07-01 02:00 UTC is 21:00 on June 30 in New Orleans (CDT, UTC-5) -- a Pacific
+        // device would show 19:00 and an Eastern one 22:00.
+        val local = newOrleansLocalDateTime(Instant.parse("2026-07-01T02:00:00Z"))
+
+        assertEquals(DayOfWeek.TUESDAY, local.dayOfWeek)
+        assertEquals(LocalTime(21, 0), local.time)
+    }
+
+    @Test
+    fun `uses standard time in winter`() {
+        val local = newOrleansLocalDateTime(Instant.parse("2026-01-15T03:30:00Z"))
+
+        assertEquals(DayOfWeek.WEDNESDAY, local.dayOfWeek)
+        assertEquals(LocalTime(21, 30), local.time)
+    }
+
+    @Test
+    fun `open and closed badge follows New Orleans time`() {
+        val periods = listOf(OpeningPeriod(openDay = 2, openTime = "17:00", closeDay = 2, closeTime = "23:00"))
+        val local = newOrleansLocalDateTime(Instant.parse("2026-07-01T02:00:00Z")) // Tue 21:00 CT
+
+        assertEquals(true, isOpenNow(periods, local.dayOfWeek, local.time))
     }
 }

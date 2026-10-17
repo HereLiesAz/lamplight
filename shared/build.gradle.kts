@@ -108,6 +108,11 @@ kotlin {
             dependencies {
                 implementation(libs.kotlinx.browser)
                 implementation(libs.kotlinx.coroutines.core)
+                // kotlinx-datetime's JS/wasmJs backend wraps js-joda, which ships no tz database
+                // of its own: without this, TimeZone.of("America/Chicago") throws
+                // IllegalTimeZoneException. 2.23.0 is the last release whose peer range
+                // (@js-joda/core >=1.11.0) accepts the core 3.2.0 that kotlinx-datetime 0.8.0 pins.
+                implementation(npm("@js-joda/timezone", "2.23.0"))
             }
         }
         wasmJsMain.get().dependsOn(webMain)

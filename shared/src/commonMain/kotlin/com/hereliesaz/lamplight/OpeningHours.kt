@@ -1,10 +1,23 @@
 package com.hereliesaz.lamplight
 
 import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 
 // Google's day convention is 0=Sunday..6=Saturday; kotlinx.datetime.DayOfWeek is 1=Monday..7=Sunday.
 private fun googleDayToDayOfWeek(googleDay: Int): DayOfWeek = DayOfWeek(if (googleDay == 0) 7 else googleDay)
+
+/** Google's opening-hours periods are venue-local, so "now" must be read in New Orleans time, not the device's. */
+val NEW_ORLEANS_TIME_ZONE: TimeZone = run {
+    loadTimeZoneData()
+    TimeZone.of("America/Chicago")
+}
+
+/** [instant] as a wall-clock date/time in New Orleans, regardless of the device's time zone. */
+fun newOrleansLocalDateTime(instant: Instant): LocalDateTime = instant.toLocalDateTime(NEW_ORLEANS_TIME_ZONE)
 
 /**
  * Whether a place is open at [nowTime] on [now], given its opening periods. Returns null when

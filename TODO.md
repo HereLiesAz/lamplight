@@ -49,7 +49,7 @@ ones here instead of letting them live only in a chat transcript.
       -- simplified to `ComposeViewport()` (null id, attaches directly to
       `<body>`) so a hand-written `index.html` doesn't need to keep an
       element id in lockstep with a Kotlin string, and added
-      `webApp/src/wasmJsMain/resources/index.html` with a plain
+      `webApp/src/webMain/resources/index.html` with a plain
       `<script src="webApp.js">`. Verified locally as far as possible: the
       file lands correctly in `:webApp:wasmJsProcessResources`'s output
       (a real, confirmed dependency of `wasmJsBrowserDistribution`), and
@@ -67,7 +67,9 @@ ones here instead of letting them live only in a chat transcript.
       plain HTTP fetch above (which works fine through the same proxy) --
       a sandbox/tooling limitation, not something wrong with the deploy.
       A real device/browser check is still the next real verification.
-- [ ] **Commit a real `kotlin-js-store/wasm/yarn.lock`.** The one in the repo
+- [ ] **Commit a real `kotlin-js-store/wasm/yarn.lock`.** (Note: `.gitignore`
+      currently ignores `kotlin-js-store/`, so that line must be removed or
+      the lockfile force-added before it can be committed.) The one in the repo
       is empty. Root cause is now pinned down precisely, not just assumed:
       `:kotlinWasmToolingSetup` needs a workspace-wide `yarn install`, which
       needs `karma` (Kotlin's fork, `Kotlin/karma`, test tooling for wasmJs

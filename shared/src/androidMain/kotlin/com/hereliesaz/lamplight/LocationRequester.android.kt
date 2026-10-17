@@ -18,18 +18,22 @@ actual fun rememberLocationRequester(): suspend () -> GeoPosition? {
     val context = LocalContext.current
     val locationProvider = remember(context) { AndroidLocationProvider(context) }
     val pendingGrant = remember { mutableStateOf<CancellableContinuation<Boolean>?>(null) }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        pendingGrant.value?.resume(granted)
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+        // On Android 12+ the guest may grant only "Approximate" (COARSE); that is enough.
+        pendingGrant.value?.resume(results.values.any { it })
         pendingGrant.value = null
     }
     return remember(locationProvider, launcher) {
         suspend {
-            val alreadyGranted = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
+            val alreadyGranted = listOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ).any { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }
             val granted = alreadyGranted || suspendCancellableCoroutine { continuation ->
                 pendingGrant.value = continuation
-                launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                launcher.launch(
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                )
             }
             if (granted) locationProvider.currentLocation() else null
         }
