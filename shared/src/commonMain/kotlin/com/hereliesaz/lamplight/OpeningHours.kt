@@ -11,7 +11,10 @@ import kotlin.time.Instant
 private fun googleDayToDayOfWeek(googleDay: Int): DayOfWeek = DayOfWeek(if (googleDay == 0) 7 else googleDay)
 
 /** Google's opening-hours periods are venue-local, so "now" must be read in New Orleans time, not the device's. */
-val NEW_ORLEANS_TIME_ZONE: TimeZone = TimeZone.of("America/Chicago")
+val NEW_ORLEANS_TIME_ZONE: TimeZone = run {
+    loadTimeZoneData()
+    TimeZone.of("America/Chicago")
+}
 
 /** [instant] as a wall-clock date/time in New Orleans, regardless of the device's time zone. */
 fun newOrleansLocalDateTime(instant: Instant): LocalDateTime = instant.toLocalDateTime(NEW_ORLEANS_TIME_ZONE)
