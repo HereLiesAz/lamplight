@@ -29,6 +29,9 @@ suspend fun requestOneTimeLocation(context: Context): Location? {
         suspendCancellableCoroutine { continuation ->
             val listener = object : LocationListener {
                 override fun onLocationChanged(location: Location) {
+                    // First fix wins: drop the other provider's pending request now, since a
+                    // normal resume doesn't trigger invokeOnCancellation.
+                    runCatching { locationManager.removeUpdates(this) }
                     if (continuation.isActive) continuation.resume(location)
                 }
             }
